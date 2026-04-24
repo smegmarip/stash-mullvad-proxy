@@ -1,0 +1,9 @@
+server
+stash-mullvad-proxy
+*.json.tmp
+.env
+data/
+.vscode/
+.history/
+.claude/
+.idea/

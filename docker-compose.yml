@@ -1,0 +1,38 @@
+services:
+  stash-mullvad-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stash-mullvad-proxy
+    hostname: stash-mullvad-proxy
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    ports:
+      - "${WEB_PORT:-11000}:11000"
+    environment:
+      - MULLVAD_ACCOUNT=${MULLVAD_ACCOUNT}
+      - PROXY_ADDR=${PROXY_ADDR:-:11001}
+      - WEB_ADDR=${WEB_ADDR:-:11000}
+      - DATA_DIR=/data
+    volumes:
+      - ${DATA_PATH:-./data}:/data
+    networks:
+      - stash_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:11000/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  stash_network:
+    name: ${DOCKER_NETWORK:-stash-network}
+    external: true
