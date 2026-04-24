@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash Mullvad Proxy</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e1e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6c8aff;
+    --accent-hover: #8ba3ff;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; font-weight: 600; }
+  h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .badge {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .badge .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .tunnel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .tunnel-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    position: relative;
+  }
+  .tunnel-card .name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .tunnel-card .location {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+  .tunnel-card .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+  .tunnel-card .status-dot {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .tunnel-card .actions {
+    margin-top: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  .form-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  input, select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    outline: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+  input::placeholder { color: var(--text-dim); }
+  select { cursor: pointer; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.danger {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    font-size: 0.8rem;
+  }
+  button.danger:hover { background: rgba(248, 113, 113, 0.1); }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .empty {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    padding: 16px 0;
+    text-align: center;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    font-size: 0.85rem;
+    z-index: 100;
+    animation: fadeIn 0.2s;
+  }
+  .toast.error { border-color: var(--red); color: var(--red); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+  .proxy-hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Stash Mullvad Proxy</h1>
+    <div class="proxy-hint">proxy: <span id="proxy-addr">:11001</span></div>
+  </div>
+  <div class="badge" id="status-badge">
+    <span class="dot" style="background:var(--text-dim)"></span>
+    Loading...
+  </div>
+</header>
+
+<section>
+  <h2>WireGuard Tunnels</h2>
+  <div class="tunnel-grid" id="tunnel-grid"></div>
+  <div class="form-row">
+    <input type="text" id="tunnel-name" placeholder="Tunnel name" style="flex:1;min-width:140px">
+    <select id="relay-select" style="flex:2;min-width:200px">
+      <option value="">Loading relays...</option>
+    </select>
+    <button id="create-tunnel-btn" onclick="createTunnel()">Create Tunnel</button>
+  </div>
+</section>
+
+<section>
+  <h2>Domain Routing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Domain Pattern</th>
+        <th>Tunnel</th>
+        <th style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody id="route-tbody"></tbody>
+  </table>
+  <div class="form-row">
+    <input type="text" id="route-domain" placeholder="*.example.com" style="flex:2;min-width:180px">
+    <select id="route-tunnel" style="flex:1;min-width:140px">
+      <option value="">Select tunnel</option>
+    </select>
+    <button onclick="createRoute()">Add Route</button>
+  </div>
+</section>
+
+<script>
+const API = '';
+
+// --- State ---
+let tunnels = [];
+let routes = [];
+let relays = [];
+
+// --- API helpers ---
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(API + path, opts);
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function toast(msg, isError) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// --- Render ---
+function renderTunnels() {
+  const grid = document.getElementById('tunnel-grid');
+  if (!tunnels.length) {
+    grid.innerHTML = '<div class="empty">No tunnels configured. Create one below.</div>';
+    return;
+  }
+  grid.innerHTML = tunnels.map(t => {
+    const color = t.up ? (t.connected ? 'var(--green)' : 'var(--yellow)') : 'var(--red)';
+    const statusText = t.up ? (t.connected ? 'Connected' : 'Up (no handshake)') : 'Down';
+    return `
+      <div class="tunnel-card">
+        <div class="status-dot" style="background:${color}" title="${statusText}"></div>
+        <div class="name">${esc(t.name)}</div>
+        <div class="location">${esc(t.country_name)} - ${esc(t.city_name)}</div>
+        <div class="meta">
+          ${esc(t.relay_hostname)} &middot; ${esc(t.interface_name || 'n/a')}<br>
+          ${esc(t.local_ip || 'no ip')} &middot; ${statusText}
+        </div>
+        <div class="actions">
+          <button class="danger" onclick="deleteTunnel(${t.id})">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRoutes() {
+  const tbody = document.getElementById('route-tbody');
+  if (!routes.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">No routes. Requests go direct.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = routes.map(r => `
+    <tr>
+      <td><code>${esc(r.domain_pattern)}</code></td>
+      <td>${esc(r.tunnel_name)}</td>
+      <td><button class="danger" onclick="deleteRoute(${r.id})">Delete</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderRelaySelect() {
+  const sel = document.getElementById('relay-select');
+  if (!relays.length) {
+    sel.innerHTML = '<option value="">No relays available</option>';
+    return;
+  }
+
+  // Group by country > city
+  const grouped = {};
+  for (const r of relays) {
+    const key = `${r.country_name} - ${r.city_name}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  }
+
+  const keys = Object.keys(grouped).sort();
+  let html = '<option value="">Select relay...</option>';
+  for (const key of keys) {
+    html += `<optgroup label="${esc(key)}">`;
+    for (const r of grouped[key]) {
+      html += `<option value="${esc(r.hostname)}">${esc(r.hostname)}</option>`;
+    }
+    html += '</optgroup>';
+  }
+  sel.innerHTML = html;
+}
+
+function renderTunnelSelect() {
+  const sel = document.getElementById('route-tunnel');
+  const activeTunnels = tunnels.filter(t => t.up);
+  let html = '<option value="">Select tunnel...</option>';
+  for (const t of activeTunnels) {
+    html += `<option value="${t.id}">${esc(t.name)} (${esc(t.country_name)} - ${esc(t.city_name)})</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+function renderStatus() {
+  const badge = document.getElementById('status-badge');
+  const active = tunnels.filter(t => t.up).length;
+  const connected = tunnels.filter(t => t.connected).length;
+  const color = active === 0 ? 'var(--text-dim)' : (connected === active ? 'var(--green)' : 'var(--yellow)');
+  badge.innerHTML = `<span class="dot" style="background:${color}"></span>${active} tunnel${active !== 1 ? 's' : ''} active &middot; ${routes.length} route${routes.length !== 1 ? 's' : ''}`;
+}
+
+// --- Actions ---
+async function createTunnel() {
+  const name = document.getElementById('tunnel-name').value.trim();
+  const relay = document.getElementById('relay-select').value;
+  if (!name || !relay) {
+    toast('Fill in tunnel name and select a relay', true);
+    return;
+  }
+
+  const btn = document.getElementById('create-tunnel-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  try {
+    await api('POST', '/api/tunnels', { name, relay_hostname: relay });
+    document.getElementById('tunnel-name').value = '';
+    toast('Tunnel created');
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Tunnel';
+  }
+}
+
+async function deleteTunnel(id) {
+  if (!confirm('Remove this tunnel? Associated routes must be deleted first.')) return;
+  try {
+    await api('DELETE', `/api/tunnels/${id}`);
+    toast('Tunnel removed');
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+async function createRoute() {
+  const domain = document.getElementById('route-domain').value.trim();
+  const tunnelId = parseInt(document.getElementById('route-tunnel').value);
+  if (!domain || !tunnelId) {
+    toast('Fill in domain pattern and select a tunnel', true);
+    return;
+  }
+  try {
+    await api('POST', '/api/routes', { domain_pattern: domain, tunnel_id: tunnelId });
+    document.getElementById('route-domain').value = '';
+    toast('Route added');
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+async function deleteRoute(id) {
+  try {
+    await api('DELETE', `/api/routes/${id}`);
+    toast('Route deleted');
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+// --- Data fetching ---
+async function refresh() {
+  try {
+    [tunnels, routes] = await Promise.all([
+      api('GET', '/api/tunnels'),
+      api('GET', '/api/routes'),
+    ]);
+  } catch (e) {
+    console.error('refresh failed:', e);
+  }
+  renderTunnels();
+  renderRoutes();
+  renderTunnelSelect();
+  renderStatus();
+}
+
+async function loadRelays() {
+  try {
+    relays = await api('GET', '/api/relays');
+  } catch (e) {
+    console.error('relay fetch failed:', e);
+  }
+  renderRelaySelect();
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Init ---
+(async () => {
+  await Promise.all([refresh(), loadRelays()]);
+  // Auto-refresh every 15s
+  setInterval(refresh, 15000);
+})();
+</script>
+</body>
+</html>
