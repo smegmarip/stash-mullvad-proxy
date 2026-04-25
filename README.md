@@ -109,6 +109,19 @@ The proxy registers WireGuard devices against your account via the Mullvad API. 
 
      Replace `<host-ip>` with the actual IP of the machine running the proxy (e.g. `192.168.1.50`).
 
+### Stash `no_proxy` configuration
+
+When Stash is configured with a `proxy:` setting in `config.yml`, *all* outbound HTTP requests from Stash and its plugins (including those that call back to Stash's own GraphQL endpoint) are routed through the proxy. Self-referential calls -- e.g. a plugin using Python `requests` to query `http://0.0.0.0:9999/graphql` -- will fail with `502 Bad Gateway` because the proxy cannot reach Stash's loopback address from inside its own container.
+
+The fix is to add a `no_proxy` entry to Stash's `config.yml` so loopback calls bypass the proxy:
+
+```yaml
+proxy: http://stash-mullvad-proxy:11001
+no_proxy: 0.0.0.0,localhost,127.0.0.1
+```
+
+Restart Stash after editing. Plugins that talk back to Stash will then go direct, and only outbound requests to external hosts will traverse the proxy.
+
 ## Usage
 
 ### Creating a tunnel
